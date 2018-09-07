@@ -12,6 +12,7 @@ pyautogui.PAUSE = 0.02
 mouse_relative_mode = True
 
 class MouseMoveListenerThread(threading.Thread):
+    # doesn't do anything anymore
     def __init__(self, q):
         super().__init__()
         self.stopEvent = threading.Event()
@@ -112,12 +113,24 @@ def mouse_scroll(queue):
         queue.put(bytes(msg, "utf-8"))
 
     return mouse_scroll
+
+def mouse_move(queue):
+    def mouse_move(x, y):
+        if mouse_relative_mode:
+            center = (pyautogui.size()[0]/2, pyautogui.size()[1]/2)
+            msg = "msmv_" + str(x - center[0]) + "," + str(y - center[1])
+        else:
+            msg = "msto_" + str(x) + "," + str(y)
+        queue.put(bytes(msg, "utf-8"))
+        time.sleep(0.015)
+        
+    return mouse_move
     
 
 
 def main():
     q = queue.Queue()
-    mouseMoveListener = MouseMoveListenerThread(q)
+    #mouseMoveListener = MouseMoveListenerThread(q)
     socketThread = SocketThread(q)
     keyboardListener = keyboard.Listener(
         on_press=keyboard_event(q, "down"),
@@ -125,16 +138,19 @@ def main():
         suppress=True)
     mouseListener = mouse.Listener(
         on_click=mouse_click(q),
-        on_scroll=mouse_scroll(q))
-    
-    mouseMoveListener.start()
+        on_scroll=mouse_scroll(q),
+        on_move=mouse_move(q),
+        suppress=mouse_relative_mode)
+
+    pyautogui.moveTo(pyautogui.size()[0]/2, pyautogui.size()[1]/2)
+    #mouseMoveListener.start()
     mouseListener.start()
     socketThread.start()
     keyboardListener.start()
 
     keyboardListener.join()
     print("Stopping")
-    mouseMoveListener.stop()
+    #mouseMoveListener.stop()
     mouseListener.stop()
     socketThread.stop()
 
