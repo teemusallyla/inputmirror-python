@@ -7,6 +7,7 @@ from pynput.mouse import Controller as MouseController
 from pynput.mouse import Button
 
 sock = socket.socket()
+sock.settimeout(0.5)
 sock.bind(("192.168.0.185", 1337))
 sock.listen()
 pyautogui.PAUSE = 0
@@ -23,7 +24,11 @@ for button in list(Button):
 
 try:
     while True:
-        conn, addr = sock.accept()
+        conn = None
+        try:
+            conn, addr = sock.accept()
+        except socket.timeout:
+            continue
         data = conn.recv(4096)
         while data != b"":
             conn.sendall(b"ack")
@@ -70,8 +75,9 @@ except Exception as e:
 except:
     print("Unknown exception occured")
 finally:
-    conn.sendall(b"end")
-    conn.close()
+    if conn:
+        conn.sendall(b"end")
+        conn.close()
 
 sock.close()
 print("Stopped")
