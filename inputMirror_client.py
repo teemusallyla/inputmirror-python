@@ -66,11 +66,16 @@ class SocketThread(threading.Thread):
         sock = socket.socket()
         sock.connect(("192.168.0.185", 1337))
 
+        old_msg = None
+
         try:
             while not self.stopSending.is_set():
                 try:
                     cnt = self.queue.get(timeout=0.5)
+                    if cnt == old_msg:
+                        continue
                     sock.sendall(cnt)
+                    old_msg = cnt
                     print("Sending: " + str(cnt, "utf-8"))
                     resp = sock.recv(4096)
                     if resp == b"end":
