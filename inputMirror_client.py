@@ -133,33 +133,66 @@ def mouse_move(queue):
             time.sleep(0.015)
         
     return mouse_move
+
+class Keyboardlistener(keyboard.Listener):
+    def __init__(self, pause_event):
+        super().__init__(on_release=self.on_release, on_press=self.on_press)
+        self.pause_event = pause_event
+
+
+    def on_press(self, key):
+        if key == keyboard.Key.esc:
+            return False
+
+    def on_release(self, key):
+        print("something pressed")
+        if key == keyboard.Key.f2:
+            self.pause_event.clear()
+            print("pause cleared")
+        
+        
     
 
 
 def main():
     q = queue.Queue()
-    #mouseMoveListener = MouseMoveListenerThread(q)
+    pause_event = threading.Event()
+    pause_event.set()
+    
     socketThread = SocketThread(q)
-    keyboardListener = keyboard.Listener(
-        on_press=keyboard_event(q, "down"),
-        on_release=keyboard_event(q, "up"),
-        suppress=True)
-    mouseListener = mouse.Listener(
-        on_click=mouse_click(q),
-        on_scroll=mouse_scroll(q),
-        on_move=mouse_move(q),
-        suppress=mouse_relative_mode)
+    mainListener = Keyboardlistener(pause_event)
 
-    pyautogui.moveTo(pyautogui.size()[0]/2, pyautogui.size()[1]/2)
-    #mouseMoveListener.start()
-    mouseListener.start()
     socketThread.start()
-    keyboardListener.start()
+    mainListener.start()
 
-    keyboardListener.join()
-    print("Stopping")
-    #mouseMoveListener.stop()
-    mouseListener.stop()
+    while True:
+        keyboardListener = keyboard.Listener(
+            on_press=keyboard_event(q, "down"),
+            on_release=keyboard_event(q, "up"),
+            suppress=True)
+        mouseListener = mouse.Listener(
+            on_click=mouse_click(q),
+            on_scroll=mouse_scroll(q),
+            on_move=mouse_move(q),
+            suppress=mouse_relative_mode)
+
+        pyautogui.moveTo(pyautogui.size()[0]/2, pyautogui.size()[1]/2)
+
+        mouseListener.start()
+        keyboardListener.start()
+        keyboardListener.join()
+        print("Pausing")
+        mouseListener.stop()
+        while pause_event.is_set():
+            if not mainListener.running:
+                break
+            time.sleep(0.2)
+        if not mainListener.running:
+            break
+
+        pause_event.set()
+
+    print("Stopping the whole thing")
     socketThread.stop()
 
 if __name__ == "__main__":
