@@ -6,10 +6,12 @@ import threading
 import queue
 import socket
 from pynput import keyboard, mouse
+import platform
 
 pyautogui.PAUSE = 0.02
+windows = platform.system() == "Windows"
 
-mouse_relative_mode = True
+mouse_relative_mode = True # also determines whether mouse is suppressed
 
 class MouseMoveListenerThread(threading.Thread):
     # doesn't do anything anymore
@@ -122,7 +124,8 @@ def mouse_move(queue):
         else:
             msg = "msto_" + str(x) + "," + str(y)
         queue.put(bytes(msg, "utf-8"))
-        time.sleep(0.015)
+        if windows:
+            time.sleep(0.015)
         
     return mouse_move
     
