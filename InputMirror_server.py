@@ -75,6 +75,8 @@ try:
 except Exception as e:
     print("Exception occured:")
     print(e)
+except KeyboardInterrupt:
+    print("Server closing")
 except:
     print("Unknown exception occured")
 finally:
