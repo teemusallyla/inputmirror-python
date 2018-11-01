@@ -10,6 +10,10 @@ import platform
 
 pyautogui.PAUSE = 0.02
 windows = platform.system() == "Windows"
+partnerpc = {}
+with open("connectto.txt") as f:
+    partnerpc["ip"] = f.readline().rstrip()
+    partnerpc["port"] = int(f.readline().rstrip())
 
 mouse_relative_mode = True # also determines whether mouse is suppressed
 
@@ -64,7 +68,7 @@ class SocketThread(threading.Thread):
 
     def run(self):
         sock = socket.socket()
-        sock.connect(("192.168.0.185", 1337))
+        sock.connect((partnerpc["ip"], partnerpc["port"]))
 
         old_msg = None
 
