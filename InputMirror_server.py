@@ -8,7 +8,10 @@ from pynput.mouse import Button
 
 sock = socket.socket()
 sock.settimeout(0.5)
-sock.bind(("192.168.0.185", 1337))
+with open("thispc.txt") as f:
+    thisip = f.readline().rstrip()
+    thisport = int(f.readline().rstrip())
+sock.bind((thisip, thisport))
 sock.listen()
 pyautogui.PAUSE = 0
 keyboard = Controller()
