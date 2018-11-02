@@ -8,20 +8,23 @@ import socket
 from pynput import keyboard, mouse
 import platform
 
-pyautogui.PAUSE = 0.02
 windows = platform.system() == "Windows"
+mac = platform.system() == "Darwin"
+pyautogui.PAUSE = 0.02 if not mac else 0.02
 partnerpc = {}
 with open("connectto.txt") as f:
     partnerpc["ip"] = f.readline().rstrip()
     partnerpc["port"] = int(f.readline().rstrip())
+    partnerpc["size"] = [int(x) for x in f.readline().rstrip().split("x")]
 
-mouse_relative_mode = True # also determines whether mouse is suppressed
+mouse_relative_mode = True # doesn't work on macOS Mojave
+suppress = True # you want to keep this at true
 
 class MouseMoveListenerThread(threading.Thread):
     # doesn't do anything anymore
     def __init__(self, q):
         super().__init__()
-        self.stopEvent = threading.Event()
+        self.stopEvcent = threading.Event()
         self.queue = q
 
     def substract(self, t1, t2):
@@ -77,7 +80,8 @@ class SocketThread(threading.Thread):
                 try:
                     cnt = self.queue.get(timeout=0.5)
                     if cnt == old_msg:
-                        continue
+                        #continue
+                        pass
                     sock.sendall(cnt)
                     old_msg = cnt
                     print("Sending: " + str(cnt, "utf-8"))
@@ -101,11 +105,15 @@ def keyboard_event(queue, direction):
         if key == keyboard.Key.esc:
             print("Keyboard listener stopped")
             return False
+        msg = None
         try:
             msg = prefix + key.char
         except AttributeError:
             msg = prefix + key.name
-        queue.put(bytes(msg, "utf-8"))
+        except TypeError:
+            pass
+        if msg is not None:
+            queue.put(bytes(msg, "utf-8"))
 
     return keyboard_event
 
@@ -120,18 +128,23 @@ def mouse_click(queue):
 
 def mouse_scroll(queue):
     def mouse_scroll(x, y, dx, dy):
-        msg = "mscr_" + str(dy)
-        queue.put(bytes(msg, "utf-8"))
+        if dy != 0:
+            msg = "mscr_" + str(dy)
+            queue.put(bytes(msg, "utf-8"))
 
     return mouse_scroll
 
 def mouse_move(queue):
     def mouse_move(x, y):
-        if mouse_relative_mode:
+        if mouse_relative_mode and not mac:
             center = (pyautogui.size()[0]/2, pyautogui.size()[1]/2)
-            msg = "msmv_" + str(x - center[0]) + "," + str(y - center[1])
+            dist_x = x - center[0]
+            dist_y = y - center[1]
+            msg = "msmv_" + str(dist_x) + "," + str(dist_y)
         else:
-            msg = "msto_" + str(x) + "," + str(y)
+            partner_x = x / pyautogui.size()[0] * partnerpc["size"][0]
+            partner_y = y / pyautogui.size()[1] * partnerpc["size"][1]
+            msg = "msto_" + str(partner_x) + "," + str(partner_y)
         queue.put(bytes(msg, "utf-8"))
         if windows:
             time.sleep(0.015)
@@ -178,7 +191,7 @@ def main():
             on_click=mouse_click(q),
             on_scroll=mouse_scroll(q),
             on_move=mouse_move(q),
-            suppress=mouse_relative_mode)
+            suppress=suppress)
 
         pyautogui.moveTo(pyautogui.size()[0]/2, pyautogui.size()[1]/2)
 
