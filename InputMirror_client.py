@@ -15,10 +15,20 @@ partnerpc = {}
 with open("connectto.txt") as f:
     partnerpc["ip"] = f.readline().rstrip()
     partnerpc["port"] = int(f.readline().rstrip())
-    partnerpc["size"] = [int(x) for x in f.readline().rstrip().split("x")]
+    partnerpc["screens"] = []
+    for line in [l.rstrip() for l in f.readlines()]:
+        s = {"start": tuple([int(n) for n in line.split(";")[0].split("x")]),
+         "size": tuple([int(n) for n in line.split(";")[1].split("x")])
+         }
+        partnerpc["screens"].append(s)
+
+screen = 0
+amount_of_screens = len(partnerpc["screens"])
 
 mouse_relative_mode = True # doesn't work on macOS Mojave
 suppress = True # you want to keep this at true
+
+mouseController = mouse.Controller()
 
 class MouseMoveListenerThread(threading.Thread):
     # doesn't do anything anymore
@@ -101,10 +111,19 @@ class SocketThread(threading.Thread):
 
 def keyboard_event(queue, direction):
     def keyboard_event(key):
+        global screen
+        send_key = True
         prefix = "kb_dn_" if direction == "down" else "kb_up_"
         if key == keyboard.Key.esc:
             print("Keyboard listener stopped")
             return False
+        elif key == keyboard.Key.f3 and direction == "up":
+            screen = screen + 1 if screen < amount_of_screens - 1 else 0
+            print("screen changed: " + str(screen))
+            
+        if key == keyboard.Key.f3:
+            send_key = False
+            
         msg = None
         try:
             msg = prefix + key.char
@@ -112,7 +131,7 @@ def keyboard_event(queue, direction):
             msg = prefix + key.name
         except TypeError:
             pass
-        if msg is not None:
+        if msg is not None and send_key:
             queue.put(bytes(msg, "utf-8"))
 
     return keyboard_event
@@ -142,8 +161,12 @@ def mouse_move(queue):
             dist_y = y - center[1]
             msg = "msmv_" + str(dist_x) + "," + str(dist_y)
         else:
-            partner_x = x / pyautogui.size()[0] * partnerpc["size"][0]
-            partner_y = y / pyautogui.size()[1] * partnerpc["size"][1]
+            m_size = pyautogui.size()
+            p_size = partnerpc["screens"][screen]["size"]
+            p_start = partnerpc["screens"][screen]["start"]
+            
+            partner_x = p_start[0] + x / m_size[0] * p_size[0]
+            partner_y = p_start[1] + y / m_size[1] * p_size[1]
             msg = "msto_" + str(partner_x) + "," + str(partner_y)
         queue.put(bytes(msg, "utf-8"))
         if windows:
@@ -162,10 +185,16 @@ class Keyboardlistener(keyboard.Listener):
             return False
 
     def on_release(self, key):
+        global screen
         print("something pressed")
         if key == keyboard.Key.f2:
             self.pause_event.clear()
             print("pause cleared")
+        elif key == keyboard.Key.f3:
+            screen += 1
+            if screen >= amount_of_screens:
+                screen = 0
+            print("screen changed")
         
         
     
