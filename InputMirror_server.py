@@ -44,7 +44,8 @@ try:
                 if movement_type == "msmv":
                     pyautogui.moveRel(xpos, ypos)
                 elif movement_type == "msto":
-                    pyautogui.moveTo(xpos, ypos)
+                    #pyautogui.moveTo(xpos, ypos)
+                    mouse.position = xpos, ypos
             elif data.split("_")[0] == "kb":
                 direction = data.split("_")[1]
                 key = data.split("_")[2]
