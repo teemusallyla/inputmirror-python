@@ -25,65 +25,86 @@ mouseButton_map = {}
 for button in list(Button):
     mouseButton_map[button.name] = button
 
-try:
-    while True:
-        conn = None
-        try:
-            conn, addr = sock.accept()
-        except socket.timeout:
-            continue
-        data = conn.recv(4096)
-        while data != b"":
-            conn.sendall(b"ack")
-            data = str(data, "utf-8")
-            if data.split("_")[0] in ["msmv", "msto"]:
-                movement_type = data.split("_")[0]
-                data = data.split("_")[1]
-                xpos = float(data.split(",")[0])
-                ypos = float(data.split(",")[1])
-                if movement_type == "msmv":
-                    pyautogui.moveRel(xpos, ypos)
-                elif movement_type == "msto":
-                    #pyautogui.moveTo(xpos, ypos)
-                    mouse.position = xpos, ypos
-            elif data.split("_")[0] == "kb":
-                direction = data.split("_")[1]
-                key = data.split("_")[2]
-                if len(key) == 1:
-                    if direction == "dn":
-                        keyboard.press(key)
-                    elif direction == "up":
-                        keyboard.release(key)
-                elif key in key_map:
-                    kkey = key_map[key]
-                    if direction == "dn":
-                        keyboard.press(kkey)
-                    elif direction == "up":
-                        keyboard.release(kkey)
-            elif data.split("_")[0] == "ms":
-                direction = data.split("_")[1]
-                button = data.split("_")[2]
-                if button in mouseButton_map:
-                    if direction == "dn":
-                        mouse.press(mouseButton_map[button])
-                    elif direction == "up":
-                        mouse.release(mouseButton_map[button])
-            elif data.split("_")[0] == "mscr":
-                mouse.scroll(0, int(data.split("_")[1]) * 10)
-            data = conn.recv(4096)
-        conn.close()
-        
-except Exception as e:
-    print("Exception occured:")
-    print(e)
-except KeyboardInterrupt:
-    print("Server closing")
-except:
-    print("Unknown exception occured")
-finally:
-    if conn:
-        conn.sendall(b"end")
-        conn.close()
+def onMouseMove(msg):
+    movement_type = msg.split("_")[0]
+    data = msg.split("_")[1]
+    xpos = float(data.split(",")[0])
+    ypos = float(data.split(",")[1])
+    if movement_type == "msmv":
+        pyautogui.moveRel(xpos, ypos)
+    elif movement_type == "msto":
+        mouse.position = xpos, ypos
 
-sock.close()
-print("Stopped")
+def onKeyboard(msg):
+    direction = msg.split("_")[1]
+    key = msg.split("_")[2]
+    if len(key) == 1:
+        if direction == "dn":
+            keyboard.press(key)
+        elif direction == "up":
+            keyboard.release(key)
+    elif key in key_map:
+        kkey = key_map[key]
+        if direction == "dn":
+            keyboard.press(kkey)
+        elif direction == "up":
+            keyboard.release(kkey)
+
+def onMouse(msg):
+    direction = msg.split("_")[1]
+    button = msg.split("_")[2]
+    if button in mouseButton_map:
+        if direction == "dn":
+            mouse.press(mouseButton_map[button])
+        elif direction == "up":
+            mouse.release(mouseButton_map[button])
+
+def onScroll(msg):
+    mouse.scroll(0, int(msg.split("_")[1]) * 10)
+
+
+def loop():
+    try:
+        while True:
+            conn = None
+            try:
+                conn, addr = sock.accept()
+            except socket.timeout:
+                continue
+            data = conn.recv(4096)
+            while data != b"":
+                conn.sendall(b"ack")
+                data = str(data, "utf-8")
+                command = data.split("_")[0]
+                
+                if command in ["msmv", "msto"]:
+                    onMouseMove(data)
+                        
+                elif command == "kb":
+                    onKeyboard(data)
+                            
+                elif command == "ms":
+                    onMouse(data)
+                            
+                elif command == "mscr":
+                    onScroll(data)
+                    
+                data = conn.recv(4096)
+            conn.close()
+            
+    except Exception as e:
+        print("Exception occured:")
+        print(e)
+    except KeyboardInterrupt:
+        print("Server closing")
+    except:
+        print("Unknown exception occured")
+    finally:
+        if conn:
+            conn.sendall(b"end")
+            conn.close()
+            
+        sock.close()
+        print("Stopped")
+
+loop()
